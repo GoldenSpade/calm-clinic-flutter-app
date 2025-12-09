@@ -17,16 +17,16 @@ samples, guidance on mobile development, and a full API reference.
 
 flutter_app/
 ├── lib/
-│   ├── constants/
-│   │   └── colors.dart          # Цветовая палитра
-│   ├── theme/
-│   │   └── app_theme.dart       # Тема приложения
-│   ├── widgets/
-│   │   ├── faq_item.dart        # FAQ аккордеон
-│   │   └── service_card.dart    # Карточки услуг
-│   ├── screens/
-│   │   └── home_screen.dart     # Главная страница
-│   └── main.dart                # Точка входа
+│ ├── constants/
+│ │ └── colors.dart # Цветовая палитра
+│ ├── theme/
+│ │ └── app_theme.dart # Тема приложения
+│ ├── widgets/
+│ │ ├── faq_item.dart # FAQ аккордеон
+│ │ └── service_card.dart # Карточки услуг
+│ ├── screens/
+│ │ └── home_screen.dart # Главная страница
+│ └── main.dart # Точка входа
 └── assets/
-    └── images/
-        └── profile.jpg          # Фото профиля
+└── images/
+└── profile.jpg # Фото профиля
