@@ -12,40 +12,47 @@ class HomeScreen extends StatelessWidget {
           gradient: AppColors.gradientSoft,
         ),
         child: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildMenuButton(
-                    context,
-                    icon: Icons.calendar_today,
-                    label: 'Запис',
-                    onPressed: () {},
-                  ),
-                  const SizedBox(height: 24),
-                  _buildMenuButton(
-                    context,
-                    icon: Icons.school,
-                    label: 'Уроки',
-                    onPressed: () {},
-                  ),
-                  const SizedBox(height: 24),
-                  _buildMenuButton(
-                    context,
-                    icon: Icons.quiz,
-                    label: 'Тести',
-                    onPressed: () {},
-                  ),
-                  const SizedBox(height: 24),
-                  _buildMenuButton(
-                    context,
-                    icon: Icons.person,
-                    label: 'Особистий кабінет',
-                    onPressed: () {},
-                  ),
-                ],
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height -
+                    MediaQuery.of(context).padding.top -
+                    MediaQuery.of(context).padding.bottom,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildMenuButton(
+                      context,
+                      icon: Icons.calendar_today,
+                      label: 'Запис',
+                      onPressed: () {},
+                    ),
+                    const SizedBox(height: 24),
+                    _buildMenuButton(
+                      context,
+                      icon: Icons.school,
+                      label: 'Уроки',
+                      onPressed: () {},
+                    ),
+                    const SizedBox(height: 24),
+                    _buildMenuButton(
+                      context,
+                      icon: Icons.quiz,
+                      label: 'Тести',
+                      onPressed: () {},
+                    ),
+                    const SizedBox(height: 24),
+                    _buildMenuButton(
+                      context,
+                      icon: Icons.person,
+                      label: 'Особистий кабінет',
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
