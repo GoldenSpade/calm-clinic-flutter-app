@@ -1,24 +1,25 @@
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../models/appointment.dart';
-import '../../models/time_slot.dart';
 
 class BookingConfirmationScreen extends StatelessWidget {
   final Appointment appointment;
-  final TimeSlot timeSlot;
+  final DateTime selectedTime;
+  final int durationMinutes;
 
   const BookingConfirmationScreen({
     super.key,
     required this.appointment,
-    required this.timeSlot,
+    required this.selectedTime,
+    required this.durationMinutes,
   });
 
   @override
   Widget build(BuildContext context) {
     final timeString =
-        '${timeSlot.startTime.hour.toString().padLeft(2, '0')}:${timeSlot.startTime.minute.toString().padLeft(2, '0')}';
+        '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
     final dateString =
-        '${timeSlot.startTime.day}.${timeSlot.startTime.month}.${timeSlot.startTime.year}';
+        '${selectedTime.day}.${selectedTime.month}.${selectedTime.year}';
 
     return Scaffold(
       body: Container(
@@ -94,7 +95,7 @@ class BookingConfirmationScreen extends StatelessWidget {
                               context,
                               icon: Icons.timer,
                               label: 'Тривалість',
-                              value: '${timeSlot.durationMinutes} хвилин',
+                              value: '$durationMinutes хвилин',
                             ),
                             if (appointment.clientEmail != null) ...[
                               const Divider(height: 24),

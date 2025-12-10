@@ -6,13 +6,15 @@ import '../../services/supabase_service.dart';
 import 'booking_confirmation_screen.dart';
 
 class BookingFormScreen extends StatefulWidget {
-  final TimeSlot timeSlot;
+  final DateTime selectedTime;
   final String sessionType;
+  final int durationMinutes;
 
   const BookingFormScreen({
     super.key,
-    required this.timeSlot,
+    required this.selectedTime,
     required this.sessionType,
+    required this.durationMinutes,
   });
 
   @override
@@ -27,6 +29,45 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
   final _notesController = TextEditingController();
 
   bool _isLoading = false;
+  TimeSlot? _matchingSlot;
+
+  @override
+  void initState() {
+    super.initState();
+    _findMatchingSlot();
+  }
+
+  Future<void> _findMatchingSlot() async {
+    try {
+      // Находим слот, который содержит выбранное время
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      final startOfTomorrow = DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
+
+      final slots = await SupabaseService.getAvailableTimeSlots(
+        startDate: startOfTomorrow,
+        sessionType: widget.sessionType,
+      );
+
+      final selectedEnd = widget.selectedTime.add(Duration(minutes: widget.durationMinutes));
+
+      for (final slot in slots) {
+        final slotStart = slot.startTime.toLocal();
+        final slotEnd = slot.endTime.toLocal();
+
+        // Проверяем, содержится ли наш выбранный период внутри этого слота
+        if (widget.selectedTime.isAfter(slotStart) || widget.selectedTime.isAtSameMomentAs(slotStart)) {
+          if (selectedEnd.isBefore(slotEnd) || selectedEnd.isAtSameMomentAs(slotEnd)) {
+            setState(() {
+              _matchingSlot = slot;
+            });
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      print('Error finding matching slot: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -64,6 +105,16 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
       return;
     }
 
+    if (_matchingSlot == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Не вдалося знайти відповідний слот'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     // Check that at least email or phone is provided
     if (_emailController.text.isEmpty && _phoneController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -81,7 +132,7 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
 
     try {
       final appointment = Appointment(
-        timeSlotId: widget.timeSlot.id,
+        timeSlotId: _matchingSlot!.id,
         clientName: _nameController.text.trim(),
         clientEmail: _emailController.text.trim().isNotEmpty
             ? _emailController.text.trim()
@@ -105,7 +156,8 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
         MaterialPageRoute(
           builder: (context) => BookingConfirmationScreen(
             appointment: createdAppointment,
-            timeSlot: widget.timeSlot,
+            selectedTime: widget.selectedTime,
+            durationMinutes: widget.durationMinutes,
           ),
         ),
       );
@@ -128,9 +180,9 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
   @override
   Widget build(BuildContext context) {
     final timeString =
-        '${widget.timeSlot.startTime.hour.toString().padLeft(2, '0')}:${widget.timeSlot.startTime.minute.toString().padLeft(2, '0')}';
+        '${widget.selectedTime.hour.toString().padLeft(2, '0')}:${widget.selectedTime.minute.toString().padLeft(2, '0')}';
     final dateString =
-        '${widget.timeSlot.startTime.day}.${widget.timeSlot.startTime.month}.${widget.timeSlot.startTime.year}';
+        '${widget.selectedTime.day}.${widget.selectedTime.month}.${widget.selectedTime.year}';
 
     return Scaffold(
       appBar: AppBar(
@@ -178,7 +230,7 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${widget.timeSlot.durationMinutes} хвилин',
+                              '${widget.durationMinutes} хвилин',
                               style: Theme.of(context).textTheme.bodyLarge,
                             ),
                           ],

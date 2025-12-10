@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/colors.dart';
 import 'booking_calendar_screen.dart';
 
-class BookingDurationScreen extends StatelessWidget {
+class BookingDurationScreen extends ConsumerWidget {
   const BookingDurationScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Оберіть тривалість сесії'),
@@ -26,6 +27,7 @@ class BookingDurationScreen extends StatelessWidget {
                   const SizedBox(height: 24),
                   _buildDurationCard(
                     context,
+                    ref,
                     duration: 15,
                     title: 'Безкоштовна консультація',
                     subtitle: '15 хвилин',
@@ -38,6 +40,7 @@ class BookingDurationScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   _buildDurationCard(
                     context,
+                    ref,
                     duration: 60,
                     title: 'Індивідуальна сесія',
                     subtitle: '60 хвилин',
@@ -50,6 +53,7 @@ class BookingDurationScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   _buildDurationCard(
                     context,
+                    ref,
                     duration: 90,
                     title: 'Розширена сесія',
                     subtitle: '90 хвилин',
@@ -57,7 +61,7 @@ class BookingDurationScreen extends StatelessWidget {
                     description:
                         'Поглиблена робота з більше часу для детального опрацювання запиту.',
                     icon: Icons.timer,
-                    sessionType: '90min',
+                    sessionType: '60min', // Use 60min slots for 90min sessions
                   ),
                   const SizedBox(height: 24),
                 ],
@@ -70,7 +74,8 @@ class BookingDurationScreen extends StatelessWidget {
   }
 
   Widget _buildDurationCard(
-    BuildContext context, {
+    BuildContext context,
+    WidgetRef ref, {
     required int duration,
     required String title,
     required String subtitle,
@@ -94,6 +99,12 @@ class BookingDurationScreen extends StatelessWidget {
       ),
       child: InkWell(
         onTap: () {
+          // Invalidate providers to force refresh of slots and appointments
+          ref.invalidate(timeSlotsProvider);
+          ref.invalidate(appointmentsProvider);
+
+          print('🔄 Refreshing slots and appointments data...');
+
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -111,6 +122,7 @@ class BookingDurationScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -146,15 +158,16 @@ class BookingDurationScreen extends StatelessWidget {
                                     color: AppColors.mutedForeground,
                                   ),
                         ),
+                        const SizedBox(height: 8),
+                        Text(
+                          price,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
                       ],
                     ),
-                  ),
-                  Text(
-                    price,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
                   ),
                 ],
               ),
@@ -170,6 +183,12 @@ class BookingDurationScreen extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
+                    // Invalidate providers to force refresh of slots and appointments
+                    ref.invalidate(timeSlotsProvider);
+                    ref.invalidate(appointmentsProvider);
+
+                    print('🔄 Refreshing slots and appointments data...');
+
                     Navigator.push(
                       context,
                       MaterialPageRoute(

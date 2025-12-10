@@ -25,7 +25,7 @@ class SupabaseService {
   static Future<List<TimeSlot>> getAvailableTimeSlots({
     DateTime? startDate,
     DateTime? endDate,
-    int? durationMinutes,
+    String? sessionType,
   }) async {
     dynamic query = client.from('time_slots').select().eq('is_available', true);
 
@@ -37,8 +37,8 @@ class SupabaseService {
       query = query.lte('start_time', endDate.toIso8601String());
     }
 
-    if (durationMinutes != null) {
-      query = query.eq('duration_minutes', durationMinutes);
+    if (sessionType != null) {
+      query = query.eq('session_type', sessionType);
     }
 
     query = query.order('start_time', ascending: true);
@@ -66,11 +66,23 @@ class SupabaseService {
     return Appointment.fromJson(response);
   }
 
-  // Get appointments (for admin)
+  // Get appointments with time slots
   static Future<List<Appointment>> getAppointments() async {
     final response = await client
         .from('appointments')
-        .select()
+        .select('''
+          *,
+          time_slot:time_slot_id (
+            id,
+            start_time,
+            end_time,
+            duration_minutes,
+            is_available,
+            session_type,
+            created_at
+          )
+        ''')
+        .eq('status', 'confirmed')
         .order('created_at', ascending: false);
 
     return (response as List)

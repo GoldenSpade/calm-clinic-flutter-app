@@ -1,3 +1,5 @@
+import 'time_slot.dart';
+
 class Appointment {
   final String? id;
   final String timeSlotId;
@@ -8,6 +10,7 @@ class Appointment {
   final String? notes;
   final String status;
   final DateTime? createdAt;
+  final TimeSlot? timeSlot;
 
   Appointment({
     this.id,
@@ -19,6 +22,7 @@ class Appointment {
     this.notes,
     this.status = 'confirmed',
     this.createdAt,
+    this.timeSlot,
   });
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
@@ -33,6 +37,9 @@ class Appointment {
       status: json['status'] as String? ?? 'confirmed',
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
+          : null,
+      timeSlot: json['time_slot'] != null
+          ? TimeSlot.fromJson(json['time_slot'] as Map<String, dynamic>)
           : null,
     );
   }

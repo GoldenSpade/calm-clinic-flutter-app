@@ -47,9 +47,6 @@ dependencies:
   # State management
   flutter_riverpod: ^2.6.1
 
-  # Date and time utilities
-  table_calendar: ^3.1.2
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
