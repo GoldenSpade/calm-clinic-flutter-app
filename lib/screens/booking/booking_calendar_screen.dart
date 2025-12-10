@@ -419,6 +419,11 @@ class _BookingCalendarScreenState
                         },
                       ),
                     ),
+                    // White spacing between dates and time slots
+                    Container(
+                      height: 10,
+                      color: Colors.white,
+                    ),
                     // Time slots
                     Expanded(
                       child: _selectedDate == null
