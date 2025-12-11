@@ -29,7 +29,7 @@ class Appointment {
     this.appointmentEndTime,
   });
 
-  /// Parse UTC time string and convert to Kyiv timezone (UTC+2 winter / UTC+3 summer)
+  /// Parse UTC time string - returns as UTC DateTime
   static DateTime _parseUtcTime(String timeStr) {
     // Replace +00:00 with Z to make Dart parse it as UTC
     String normalizedStr = timeStr;
@@ -39,40 +39,10 @@ class Appointment {
       normalizedStr = timeStr.replaceAll('+00', 'Z');
     }
 
-    final utcTime = DateTime.parse(normalizedStr);
+    // Parse as UTC and keep it as UTC
+    final utcTime = DateTime.parse(normalizedStr).toUtc();
 
-    // Convert to Kyiv timezone (Europe/Kiev)
-    final kyivOffset = _getKyivOffset(utcTime);
-    final kyivTime = utcTime.add(Duration(hours: kyivOffset));
-
-    return kyivTime;
-  }
-
-  /// Get Kyiv timezone offset (2 for winter, 3 for summer)
-  static int _getKyivOffset(DateTime utcTime) {
-    final year = utcTime.year;
-
-    // Find last Sunday of March (start of summer time)
-    DateTime marchLastSunday = DateTime.utc(year, 3, 31);
-    while (marchLastSunday.weekday != DateTime.sunday) {
-      marchLastSunday = marchLastSunday.subtract(const Duration(days: 1));
-    }
-    // DST starts at 3:00 local time (1:00 UTC)
-    final dstStart = DateTime.utc(year, 3, marchLastSunday.day, 1);
-
-    // Find last Sunday of October (end of summer time)
-    DateTime octoberLastSunday = DateTime.utc(year, 10, 31);
-    while (octoberLastSunday.weekday != DateTime.sunday) {
-      octoberLastSunday = octoberLastSunday.subtract(const Duration(days: 1));
-    }
-    // DST ends at 4:00 local time (1:00 UTC)
-    final dstEnd = DateTime.utc(year, 10, octoberLastSunday.day, 1);
-
-    // Check if current time is in DST
-    if (utcTime.isAfter(dstStart) && utcTime.isBefore(dstEnd)) {
-      return 3; // Summer time UTC+3
-    }
-    return 2; // Winter time UTC+2
+    return utcTime;
   }
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
@@ -112,15 +82,12 @@ class Appointment {
     );
   }
 
-  /// Convert Kyiv time to UTC ISO string for database storage
-  static String _kyivTimeToUtcString(DateTime kyivTime) {
-    // Get the Kyiv offset for this time
-    // We need to calculate what UTC time would give us this Kyiv time
-    // Kyiv time = UTC + offset, so UTC = Kyiv time - offset
-    final kyivOffset = _getKyivOffset(kyivTime.subtract(const Duration(hours: 3))); // approximate UTC
-    final utcTime = kyivTime.subtract(Duration(hours: kyivOffset));
+  /// Convert DateTime to UTC ISO string for database storage
+  static String _toUtcString(DateTime dateTime) {
+    // Convert to UTC if not already
+    final utcTime = dateTime.toUtc();
 
-    print('_kyivTimeToUtcString: Kyiv $kyivTime (offset $kyivOffset) -> UTC $utcTime');
+    print('_toUtcString: Local $dateTime -> UTC $utcTime');
 
     return utcTime.toIso8601String();
   }
@@ -137,9 +104,9 @@ class Appointment {
       'status': status,
       if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
       if (appointmentStartTime != null)
-        'appointment_start_time': _kyivTimeToUtcString(appointmentStartTime!),
+        'appointment_start_time': _toUtcString(appointmentStartTime!),
       if (appointmentEndTime != null)
-        'appointment_end_time': _kyivTimeToUtcString(appointmentEndTime!),
+        'appointment_end_time': _toUtcString(appointmentEndTime!),
     };
   }
 }

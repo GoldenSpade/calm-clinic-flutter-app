@@ -40,7 +40,7 @@ class TimeSlot {
     );
   }
 
-  /// Parse UTC time string and convert to Kyiv timezone (UTC+2 winter / UTC+3 summer)
+  /// Parse UTC time string - returns as UTC DateTime
   static DateTime _parseUtcTime(String timeStr) {
     // Replace +00:00 with Z to make Dart parse it as UTC
     String normalizedStr = timeStr;
@@ -50,43 +50,11 @@ class TimeSlot {
       normalizedStr = timeStr.replaceAll('+00', 'Z');
     }
 
-    final utcTime = DateTime.parse(normalizedStr);
+    // Parse as UTC and keep it as UTC
+    final utcTime = DateTime.parse(normalizedStr).toUtc();
 
-    // Convert to Kyiv timezone (Europe/Kiev)
-    // Winter time (last Sunday of October to last Sunday of March): UTC+2
-    // Summer time (last Sunday of March to last Sunday of October): UTC+3
-    final kyivOffset = _getKyivOffset(utcTime);
-    final kyivTime = utcTime.add(Duration(hours: kyivOffset));
-
-    print('  _parseUtcTime: $timeStr -> UTC: $utcTime -> Kyiv (UTC+$kyivOffset): $kyivTime');
-    return kyivTime;
-  }
-
-  /// Get Kyiv timezone offset (2 for winter, 3 for summer)
-  static int _getKyivOffset(DateTime utcTime) {
-    final year = utcTime.year;
-
-    // Find last Sunday of March (start of summer time)
-    DateTime marchLastSunday = DateTime.utc(year, 3, 31);
-    while (marchLastSunday.weekday != DateTime.sunday) {
-      marchLastSunday = marchLastSunday.subtract(const Duration(days: 1));
-    }
-    // DST starts at 3:00 local time (1:00 UTC)
-    final dstStart = DateTime.utc(year, 3, marchLastSunday.day, 1);
-
-    // Find last Sunday of October (end of summer time)
-    DateTime octoberLastSunday = DateTime.utc(year, 10, 31);
-    while (octoberLastSunday.weekday != DateTime.sunday) {
-      octoberLastSunday = octoberLastSunday.subtract(const Duration(days: 1));
-    }
-    // DST ends at 4:00 local time (1:00 UTC)
-    final dstEnd = DateTime.utc(year, 10, octoberLastSunday.day, 1);
-
-    // Check if current time is in DST
-    if (utcTime.isAfter(dstStart) && utcTime.isBefore(dstEnd)) {
-      return 3; // Summer time UTC+3
-    }
-    return 2; // Winter time UTC+2
+    print('  _parseUtcTime: $timeStr -> UTC: $utcTime');
+    return utcTime;
   }
 
   Map<String, dynamic> toJson() {
