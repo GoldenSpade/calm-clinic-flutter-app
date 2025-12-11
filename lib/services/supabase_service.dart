@@ -51,17 +51,18 @@ class SupabaseService {
 
   // Create appointment
   static Future<Appointment> createAppointment(Appointment appointment) async {
+    print('📝 Creating appointment: ${appointment.toJson()}');
+
     final response = await client
         .from('appointments')
         .insert(appointment.toJson())
         .select()
         .single();
 
-    // Update time slot to mark as unavailable
-    await client
-        .from('time_slots')
-        .update({'is_available': false})
-        .eq('id', appointment.timeSlotId);
+    // NOTE: We do NOT mark the time_slot as unavailable because:
+    // 1. A time_slot can contain multiple bookable slots (e.g., 10:00-12:00 can have 10:00, 10:30, 11:00, 11:30)
+    // 2. Availability is determined by checking overlaps with existing appointments
+    // 3. This matches the React version behavior
 
     return Appointment.fromJson(response);
   }
@@ -84,6 +85,11 @@ class SupabaseService {
         ''')
         .eq('status', 'confirmed')
         .order('created_at', ascending: false);
+
+    print('📊 Appointments response: ${response.length} records');
+    if (response.isNotEmpty) {
+      print('First appointment: ${response.first}');
+    }
 
     return (response as List)
         .map((json) => Appointment.fromJson(json as Map<String, dynamic>))

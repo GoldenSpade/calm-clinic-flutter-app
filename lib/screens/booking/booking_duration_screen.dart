@@ -61,7 +61,7 @@ class BookingDurationScreen extends ConsumerWidget {
                     description:
                         'Поглиблена робота з більше часу для детального опрацювання запиту.',
                     icon: Icons.timer,
-                    sessionType: '60min', // Use 60min slots for 90min sessions
+                    sessionType: '90min',
                   ),
                   const SizedBox(height: 24),
                 ],

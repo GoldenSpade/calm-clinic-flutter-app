@@ -6,29 +6,57 @@ import '../../models/appointment.dart';
 import '../../services/supabase_service.dart';
 import 'booking_form_screen.dart';
 
+// Immutable class for provider parameters
+class SlotQueryParams {
+  final String sessionType;
+  final int durationMinutes;
+
+  const SlotQueryParams({
+    required this.sessionType,
+    required this.durationMinutes,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SlotQueryParams &&
+          runtimeType == other.runtimeType &&
+          sessionType == other.sessionType &&
+          durationMinutes == other.durationMinutes;
+
+  @override
+  int get hashCode => sessionType.hashCode ^ durationMinutes.hashCode;
+}
+
 // Provider для загрузки слотов
-final timeSlotsProvider = FutureProvider.family<List<TimeSlot>, String>(
-  (ref, sessionType) async {
+final timeSlotsProvider = FutureProvider.family<List<TimeSlot>, SlotQueryParams>(
+  (ref, params) async {
     // Start from tomorrow like in React version
     final tomorrow = DateTime.now().add(const Duration(days: 1));
     final startOfTomorrow = DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
 
-    print('🔍 Fetching slots for session type: $sessionType');
+    print('🔍 Fetching slots for session type: ${params.sessionType} (duration: ${params.durationMinutes} min)');
     print('📅 Fetching slots from date: $startOfTomorrow');
+
+    // For 90min sessions, fetch 60min slots but filter by duration
+    final searchSessionType = (params.sessionType == '90min') ? '60min' : params.sessionType;
 
     final slots = await SupabaseService.getAvailableTimeSlots(
       startDate: startOfTomorrow,
-      sessionType: sessionType,
+      sessionType: searchSessionType,
     );
 
-    print('📊 Total slots fetched: ${slots.length}');
-    if (slots.isNotEmpty) {
-      print('First slot UTC: ${slots.first.startTime}');
-      print('First slot Local: ${slots.first.startTime.toLocal()}');
-      print('Slot session_type: ${slots.first.sessionType}');
+    // Filter by duration - only keep slots with sufficient duration
+    final filteredSlots = slots.where((slot) =>
+      slot.durationMinutes >= params.durationMinutes
+    ).toList();
+
+    print('📊 Total slots fetched: ${slots.length}, after duration filter: ${filteredSlots.length}');
+    if (filteredSlots.isNotEmpty) {
+      print('First slot: ${filteredSlots.first.startTime} (duration: ${filteredSlots.first.durationMinutes}min)');
     }
 
-    return slots;
+    return filteredSlots;
   },
 );
 
@@ -37,6 +65,14 @@ final appointmentsProvider = FutureProvider<List<Appointment>>((ref) async {
   print('🔍 Fetching appointments...');
   final appointments = await SupabaseService.getAppointments();
   print('📊 Total appointments: ${appointments.length}');
+  for (final apt in appointments) {
+    print('  📅 Appointment: ${apt.sessionType}');
+    print('     Start: ${apt.appointmentStartTime}');
+    print('     End: ${apt.appointmentEndTime}');
+    if (apt.timeSlot != null) {
+      print('     TimeSlot: ${apt.timeSlot!.startTime} - ${apt.timeSlot!.endTime}');
+    }
+  }
   return appointments;
 });
 
@@ -73,10 +109,16 @@ class _BookingCalendarScreenState
   DateTime? _selectedDate;
   DateTime? _selectedTime;
   bool _initialized = false;
+  late SlotQueryParams _queryParams;
 
   @override
   void initState() {
     super.initState();
+    // Create immutable query params once
+    _queryParams = SlotQueryParams(
+      sessionType: widget.sessionType,
+      durationMinutes: widget.durationMinutes,
+    );
     // Начинаем с понедельника текущей недели
     final now = DateTime.now();
     final weekday = now.weekday; // 1 = Monday, 7 = Sunday
@@ -104,42 +146,99 @@ class _BookingCalendarScreenState
   }
 
   // Проверяет, занят ли конкретный временной слот
+  // For overlap checking, we need to know the increment size, not the selected duration
   bool _isTimeBooked(
       DateTime slotTime, List<Appointment> appointments) {
-    final slotEnd = slotTime.add(Duration(minutes: widget.durationMinutes));
+    // Use increment (30 or 15 min) instead of selectedDuration for overlap checking
+    final increment = widget.durationMinutes >= 60 ? 30 : 15;
+    final slotEnd = slotTime.add(Duration(minutes: increment));
+
+    // Check only appointments on the same day
+    final slotDay = DateTime(slotTime.year, slotTime.month, slotTime.day);
 
     for (final appointment in appointments) {
-      if (appointment.timeSlot == null) continue;
+      // Use appointmentStartTime/EndTime if available (new format), otherwise fallback to timeSlot
+      DateTime appointmentStart;
+      DateTime appointmentEnd;
 
-      final appointmentStart = appointment.timeSlot!.startTime;  // Already local time
+      if (appointment.appointmentStartTime != null &&
+          appointment.appointmentEndTime != null) {
+        // New format with exact booking times
+        appointmentStart = appointment.appointmentStartTime!;
+        appointmentEnd = appointment.appointmentEndTime!;
+      } else if (appointment.timeSlot != null) {
+        // Old format - fallback to timeSlot
+        appointmentStart = appointment.timeSlot!.startTime;
 
-      // Определяем длительность по типу сессии
-      int appointmentDuration = 60;
-      if (appointment.sessionType == 'consultation_15') {
-        appointmentDuration = 15;
-      } else if (appointment.sessionType == 'session_60') {
-        appointmentDuration = 60;
-      } else if (appointment.sessionType == 'session_90') {
-        appointmentDuration = 90;
+        // Определяем длительность по типу сессии
+        int appointmentDuration = 60;
+        if (appointment.sessionType == 'consultation_15') {
+          appointmentDuration = 15;
+        } else if (appointment.sessionType == 'session_60') {
+          appointmentDuration = 60;
+        } else if (appointment.sessionType == 'session_90') {
+          appointmentDuration = 90;
+        }
+
+        appointmentEnd =
+            appointmentStart.add(Duration(minutes: appointmentDuration));
+      } else {
+        continue;
       }
 
-      final appointmentEnd =
-          appointmentStart.add(Duration(minutes: appointmentDuration));
-      // Добавляем буфер 15 минут после записи
-      final appointmentEndWithBuffer =
-          appointmentEnd.add(const Duration(minutes: 15));
+      // Check if appointment is on the same day as slot
+      final appointmentDay = DateTime(appointmentStart.year, appointmentStart.month, appointmentStart.day);
+      if (appointmentDay != slotDay) {
+        continue; // Skip appointments from other days
+      }
 
-      // Проверяем пересечение
+      // Check if this slot time falls within the appointment range
+      // A slot is booked if it starts before the appointment ends AND ends after the appointment starts
       final hasOverlap =
-          slotTime.isBefore(appointmentEndWithBuffer) &&
+          slotTime.isBefore(appointmentEnd) &&
           slotEnd.isAfter(appointmentStart);
 
       if (hasOverlap) {
+        print('      ⛔ Slot ${slotTime.hour}:${slotTime.minute.toString().padLeft(2, '0')} blocked by appointment: ${appointmentStart.hour}:${appointmentStart.minute.toString().padLeft(2, '0')} - ${appointmentEnd.hour}:${appointmentEnd.minute.toString().padLeft(2, '0')} (${appointment.sessionType})');
         return true;
       }
     }
 
     return false;
+  }
+
+  // Check if there are enough consecutive free slots for a full session
+  bool _hasEnoughConsecutiveSlots(
+      DateTime startTime, List<SlotInfo> allSlots, List<Appointment> appointments) {
+    // For 15-minute sessions, always allow (single slot)
+    if (widget.durationMinutes == 15) return true;
+
+    final increment = widget.durationMinutes >= 60 ? 30 : 15;
+    final slotsNeeded = (widget.durationMinutes / increment).ceil();
+
+    print('🔍 Checking ${startTime.hour}:${startTime.minute.toString().padLeft(2, '0')} - needs $slotsNeeded consecutive slots (${widget.durationMinutes} min)');
+
+    // Check if all required consecutive slots are free
+    for (int i = 0; i < slotsNeeded; i++) {
+      final checkTime = startTime.add(Duration(minutes: i * increment));
+
+      // Check directly if this time is booked
+      final isBooked = _isTimeBooked(checkTime, appointments);
+
+      // Also check if the slot exists in the generated slots
+      final slotAtTime = allSlots.any((s) => s.time.isAtSameMomentAs(checkTime));
+
+      print('  - ${checkTime.hour}:${checkTime.minute.toString().padLeft(2, '0')}: booked=$isBooked, exists=$slotAtTime');
+
+      // If slot is booked OR doesn't exist, we can't book a full session
+      if (isBooked || !slotAtTime) {
+        print('  ❌ Slot ${startTime.hour}:${startTime.minute.toString().padLeft(2, '0')} blocked - not enough consecutive slots');
+        return false;
+      }
+    }
+
+    print('  ✅ Slot ${startTime.hour}:${startTime.minute.toString().padLeft(2, '0')} available - has enough consecutive slots');
+    return true;
   }
 
   // Генерирует все возможные слоты для конкретного дня
@@ -152,20 +251,16 @@ class _BookingCalendarScreenState
     print('📅 Getting slots for day: ${day.day}.${day.month}.${day.year}');
     print('🔍 Session type: ${widget.sessionType}, Duration: ${widget.durationMinutes} min');
 
-    // Фильтруем слоты по типу сессии и дню
+    // Фильтруем слоты по дню (session type и duration уже отфильтрованы в провайдере)
     final daySlots = timeSlots.where((slot) {
       final slotStart = slot.startTime;  // Already local time
       final slotEnd = slot.endTime;      // Already local time
-      final isCorrectSessionType = slot.sessionType == widget.sessionType;
-
-      // Check if slot duration is sufficient for the selected session duration
-      final hasSufficientDuration = slot.durationMinutes >= widget.durationMinutes;
 
       // Проверяем пересечение с целевым днем
       final hasIntersection =
           slotStart.isBefore(dayEnd) && slotEnd.isAfter(dayStart);
 
-      return hasIntersection && slot.isAvailable && isCorrectSessionType && hasSufficientDuration;
+      return hasIntersection && slot.isAvailable;
     }).toList();
 
     print('📊 Found ${daySlots.length} time slot ranges for this day');
@@ -196,9 +291,12 @@ class _BookingCalendarScreenState
       // Generate all possible slots within this range for the specific day
       DateTime currentSlot = DateTime.fromMillisecondsSinceEpoch(actualStart.millisecondsSinceEpoch);
 
-      // Генерируем слоты
-      while (currentSlot.millisecondsSinceEpoch + widget.durationMinutes * 60000 <= actualEnd.millisecondsSinceEpoch) {
-        final slotEnd = currentSlot.add(Duration(minutes: widget.durationMinutes));
+      // Use increment (30 or 15 min) instead of selectedDuration to generate all slots
+      final increment = widget.durationMinutes >= 60 ? 30 : 15;
+
+      // Генерируем слоты с шагом increment
+      while (currentSlot.millisecondsSinceEpoch + increment * 60000 <= actualEnd.millisecondsSinceEpoch) {
+        final slotEnd = currentSlot.add(Duration(minutes: increment));
 
         print('    🕐 Checking slot: ${currentSlot.hour}:${currentSlot.minute.toString().padLeft(2, '0')} - ${slotEnd.hour}:${slotEnd.minute.toString().padLeft(2, '0')}');
 
@@ -209,41 +307,53 @@ class _BookingCalendarScreenState
             currentSlot.month == day.month &&
             currentSlot.day == day.day) {
 
-          // Additional check: if slotEnd is exactly 20:00 or before, it's valid
-          // But if hours are same (20) and minutes > 0, it's invalid
-          final isEndTimeValid = slotEnd.hour < 20 ||
-                                  (slotEnd.hour == 20 && slotEnd.minute == 0);
+          final isBooked = _isTimeBooked(currentSlot, appointments);
+          final isSelected = _selectedTime != null &&
+              _selectedTime!.isAtSameMomentAs(currentSlot);
 
-          if (isEndTimeValid) {
-            final isBooked = _isTimeBooked(currentSlot, appointments);
-            final isSelected = _selectedTime != null &&
-                _selectedTime!.isAtSameMomentAs(currentSlot);
+          print('      ✅ Adding slot: ${currentSlot.hour}:${currentSlot.minute.toString().padLeft(2, '0')} (available: ${!isBooked})');
 
-            print('      ✅ Adding slot: ${currentSlot.hour}:${currentSlot.minute.toString().padLeft(2, '0')} (available: ${!isBooked})');
-
-            slots.add(SlotInfo(
-              time: DateTime.fromMillisecondsSinceEpoch(currentSlot.millisecondsSinceEpoch),
-              isAvailable: !isBooked,
-              isSelected: isSelected,
-            ));
-          } else {
-            print('      ⏭️ Skipping slot (end time after 20:00)');
-          }
+          slots.add(SlotInfo(
+            time: DateTime.fromMillisecondsSinceEpoch(currentSlot.millisecondsSinceEpoch),
+            isAvailable: !isBooked,
+            isSelected: isSelected,
+          ));
         } else {
           print('      ⏭️ Skipping slot (outside business hours or wrong day)');
         }
 
-        // Move to next increment based on session duration
-        final increment = widget.durationMinutes >= 60 ? 30 : 15;
+        // Move to next increment
         currentSlot = currentSlot.add(Duration(minutes: increment));
       }
     }
 
+    // Sort slots first
     slots.sort((a, b) => a.time.compareTo(b.time));
+
+    // For 60/90 min sessions, mark slots as unavailable if they don't have enough consecutive free slots
+    if (widget.durationMinutes >= 60) {
+      for (final slot in slots) {
+        if (slot.isAvailable) {
+          final hasEnough = _hasEnoughConsecutiveSlots(slot.time, slots, appointments);
+          if (!hasEnough) {
+            // Create a new SlotInfo with updated availability
+            final index = slots.indexOf(slot);
+            slots[index] = SlotInfo(
+              time: slot.time,
+              isAvailable: false,
+              isSelected: slot.isSelected,
+            );
+          }
+        }
+      }
+    }
+
     print('✅ Generated ${slots.length} bookable slots for ${day.day}.${day.month}');
     if (slots.isNotEmpty) {
       print('  First slot: ${slots.first.time.hour}:${slots.first.time.minute.toString().padLeft(2, '0')}');
       print('  Last slot: ${slots.last.time.hour}:${slots.last.time.minute.toString().padLeft(2, '0')}');
+      final availableCount = slots.where((s) => s.isAvailable).length;
+      print('  Available slots: $availableCount');
     }
     return slots;
   }
@@ -275,7 +385,7 @@ class _BookingCalendarScreenState
 
   @override
   Widget build(BuildContext context) {
-    final timeSlotsAsync = ref.watch(timeSlotsProvider(widget.sessionType));
+    final timeSlotsAsync = ref.watch(timeSlotsProvider(_queryParams));
     final appointmentsAsync = ref.watch(appointmentsProvider);
 
     return Scaffold(

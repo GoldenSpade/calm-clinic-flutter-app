@@ -100,6 +100,20 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
     return null;
   }
 
+  // Convert app session type to database session type
+  String _convertSessionTypeForDB(String appSessionType) {
+    switch (appSessionType) {
+      case '15min':
+        return 'consultation_15';
+      case '60min':
+        return 'session_60';
+      case '90min':
+        return 'session_90';
+      default:
+        return appSessionType;
+    }
+  }
+
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -131,6 +145,15 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
     });
 
     try {
+      final dbSessionType = _convertSessionTypeForDB(widget.sessionType);
+      print('Converting session type: ${widget.sessionType} -> $dbSessionType');
+
+      // Calculate exact appointment times
+      final appointmentStart = widget.selectedTime;
+      final appointmentEnd = appointmentStart.add(Duration(minutes: widget.durationMinutes));
+
+      print('📅 Creating appointment: ${appointmentStart.toString()} - ${appointmentEnd.toString()}');
+
       final appointment = Appointment(
         timeSlotId: _matchingSlot!.id,
         clientName: _nameController.text.trim(),
@@ -140,10 +163,12 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
         clientPhone: _phoneController.text.trim().isNotEmpty
             ? _phoneController.text.trim()
             : null,
-        sessionType: widget.sessionType,
+        sessionType: dbSessionType,
         notes: _notesController.text.trim().isNotEmpty
             ? _notesController.text.trim()
             : null,
+        appointmentStartTime: appointmentStart,
+        appointmentEndTime: appointmentEnd,
       );
 
       final createdAppointment =
