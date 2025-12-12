@@ -47,6 +47,9 @@ dependencies:
   # State management
   flutter_riverpod: ^2.6.1
 
+  # WebView for in-app browser
+  webview_flutter: ^4.10.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

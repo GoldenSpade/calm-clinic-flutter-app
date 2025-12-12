@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import 'booking/booking_duration_screen.dart';
+import 'webview_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -43,7 +44,17 @@ class HomeScreen extends StatelessWidget {
                       context,
                       icon: Icons.school,
                       label: 'Уроки',
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const WebViewScreen(
+                              url: 'https://maya-kondruk.com/lessons',
+                              title: 'Уроки',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 24),
                     _buildMenuButton(
