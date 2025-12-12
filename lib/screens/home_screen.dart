@@ -61,7 +61,17 @@ class HomeScreen extends StatelessWidget {
                       context,
                       icon: Icons.quiz,
                       label: 'Тести',
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const WebViewScreen(
+                              url: 'https://maya-kondruk.com/tests',
+                              title: 'Тести',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 24),
                     _buildMenuButton(
