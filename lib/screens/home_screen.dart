@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import 'booking/booking_duration_screen.dart';
+import 'lessons/lessons_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -43,7 +44,14 @@ class HomeScreen extends StatelessWidget {
                       context,
                       icon: Icons.school,
                       label: 'Уроки',
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LessonsScreen(),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 24),
                     _buildMenuButton(
