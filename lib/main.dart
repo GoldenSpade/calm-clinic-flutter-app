@@ -4,9 +4,14 @@ import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
 import 'services/supabase_service.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await SupabaseService.initialize();
+
+  // Initialize Supabase asynchronously without blocking app startup
+  SupabaseService.initialize().catchError((error) {
+    debugPrint('⚠️ Supabase initialization failed: $error');
+  });
+
   runApp(const ProviderScope(child: MyApp()));
 }
 
