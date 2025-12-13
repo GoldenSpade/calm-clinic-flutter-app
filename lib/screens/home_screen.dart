@@ -78,7 +78,17 @@ class HomeScreen extends StatelessWidget {
                       context,
                       icon: Icons.person,
                       label: 'Особистий кабінет',
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const WebViewScreen(
+                              url: 'https://maya-kondruk.com/paid-lessons',
+                              title: 'Особистий кабінет',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
