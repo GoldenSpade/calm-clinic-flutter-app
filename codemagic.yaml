@@ -1,0 +1,143 @@
+workflows:
+  # iOS App Store Workflow
+  ios-app-store:
+    name: iOS App Store Build
+    max_build_duration: 120
+    instance_type: mac_mini_m1
+    integrations:
+      app_store_connect: codemagic
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.psychologist.mayakondruk
+      vars:
+        BUNDLE_ID: "com.psychologist.mayakondruk"
+        APP_NAME: "Психолог Майя Кондрук"
+        XCODE_WORKSPACE: "ios/Runner.xcworkspace"
+        XCODE_SCHEME: "Runner"
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Set up code signing settings on Xcode project
+        script: |
+          xcode-project use-profiles
+      - name: Clean Flutter cache
+        script: |
+          flutter clean
+      - name: Get Flutter packages
+        script: |
+          flutter packages pub get
+      - name: Clean iOS pods cache
+        script: |
+          cd ios
+          rm -rf Pods Podfile.lock .symlinks
+          pod repo update
+          cd ..
+      - name: Install pods
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+      - name: Flutter analyze
+        script: |
+          flutter analyze
+        ignore_failure: true
+      - name: Flutter unit tests
+        script: |
+          flutter test
+        ignore_failure: true
+      - name: Get version from pubspec.yaml
+        script: |
+          export APP_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | sed 's/+.*//')
+          echo "App version: $APP_VERSION"
+          echo "APP_VERSION=$APP_VERSION" >> $CM_ENV
+      - name: Get build number from pubspec.yaml
+        script: |
+          export BUILD_NUMBER=$(grep '^version:' pubspec.yaml | sed 's/version: //' | sed 's/.*+//')
+          echo "Build number: $BUILD_NUMBER"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $CM_ENV
+      - name: Build iOS release
+        script: |
+          flutter build ipa --release \
+            --build-name=$APP_VERSION \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist=ios/ExportOptionsRelease.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+    publishing:
+      email:
+        recipients:
+          - your-email@example.com
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - Internal Testers
+        submit_to_app_store: false
+
+  # Android Play Store Workflow
+  android-play-store:
+    name: Android Play Store Build
+    max_build_duration: 120
+    instance_type: linux_x2
+    environment:
+      android_signing:
+        - maya_kondruk_keystore
+      groups:
+        - google_play_credentials
+      vars:
+        PACKAGE_NAME: "com.psychologist.mayakondruk"
+        APP_NAME: "Психолог Майя Кондрук"
+      flutter: stable
+      java: 21
+    scripts:
+      - name: Set up local.properties
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
+      - name: Clean Flutter cache
+        script: |
+          flutter clean
+      - name: Get Flutter packages
+        script: |
+          flutter packages pub get
+      - name: Flutter analyze
+        script: |
+          flutter analyze
+        ignore_failure: true
+      - name: Flutter unit tests
+        script: |
+          flutter test
+        ignore_failure: true
+      - name: Get version from pubspec.yaml
+        script: |
+          export APP_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | sed 's/+.*//')
+          echo "App version: $APP_VERSION"
+          echo "APP_VERSION=$APP_VERSION" >> $CM_ENV
+      - name: Get build number from pubspec.yaml
+        script: |
+          export BUILD_NUMBER=$(grep '^version:' pubspec.yaml | sed 's/version: //' | sed 's/.*+//')
+          echo "Build number: $BUILD_NUMBER"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $CM_ENV
+      - name: Build Android App Bundle
+        script: |
+          flutter build appbundle --release \
+            --build-name=$APP_VERSION \
+            --build-number=$BUILD_NUMBER
+    artifacts:
+      - build/app/outputs/bundle/release/app-release.aab
+      - build/app/outputs/mapping/release/mapping.txt
+    publishing:
+      email:
+        recipients:
+          - your-email@example.com
+        notify:
+          success: true
+          failure: true
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: true

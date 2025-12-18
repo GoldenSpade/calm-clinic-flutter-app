@@ -17,7 +17,7 @@ if (hasKeystoreProperties) {
 }
 
 android {
-    namespace = "com.mayakondruk.psychologist"
+    namespace = "com.psychologist.mayakondruk"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -31,7 +31,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.mayakondruk.psychologist"
+        applicationId = "com.psychologist.mayakondruk"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
